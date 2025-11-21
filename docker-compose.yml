@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # FastAPI Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pdf-translator-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - API_RELOAD=false
+      - TRANSLATION_SERVICE=deepl
+      - DEEPL_API_KEY=${DEEPL_API_KEY:-}
+      - UPLOAD_DIR=/app/uploads
+      - DATABASE_URL=sqlite:///./pdf_translator.db
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:3000,http://localhost:80
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/pdf_translator.db:/app/pdf_translator.db
+    networks:
+      - pdf-translator-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: pdf-translator-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - pdf-translator-network
+    restart: unless-stopped
+
+networks:
+  pdf-translator-network:
+    driver: bridge
+
+volumes:
+  backend-uploads:
+  backend-db:
